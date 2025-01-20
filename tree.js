@@ -4,27 +4,56 @@ export default class Tree {
   #root = null;
 
   buildTree(array) {
+    const sortedArray = [...new Set(array)].sort((a, b) => a - b);
+    this.#root = this.#buildTreeRecursion(sortedArray);
+  }
+
+  #buildTreeRecursion(array) {
     if (array.length === 0) {
       return null;
     }
 
-    const sortedArray = [...new Set(array)].sort();
-    const mid = sortedArray.length / 2;
+    const mid = Math.floor(array.length / 2);
 
-    this.#root = new Node();
-    this.#root.data = sortedArray[mid];
+    const root = new Node();
+    root.data = array[mid];
 
-    const leftArray = sortedArray.slice(0, mid);
-    this.#root.left = buildTree(leftArray);
+    const leftArray = array.slice(0, mid);
+    root.left = this.#buildTreeRecursion(leftArray);
 
-    const rightArray = sortedArray.slice(mid);
-    this.#root.left = buildTree(rightArray);
+    const rightArray = array.slice(mid + 1);
+    root.right = this.#buildTreeRecursion(rightArray);
 
-    return this.#root;
+    return root;
+  }
+
+  printTree() {
+    this.#printTreeRecursion(this.#root);
+  }
+
+  #printTreeRecursion(node, prefix = "", isLeft = true) {
+    if (node === null) {
+      return;
+    }
+    if (node.right !== null) {
+      this.#printTreeRecursion(
+        node.right,
+        `${prefix}${isLeft ? "│   " : "    "}`,
+        false
+      );
+    }
+    console.log(`${prefix}${isLeft ? "└── " : "┌── "}${node.data}`);
+    if (node.left !== null) {
+      this.#printTreeRecursion(
+        node.left,
+        `${prefix}${isLeft ? "    " : "│   "}`,
+        true
+      );
+    }
   }
 
   insert(value) {
-    const newNode = newNode();
+    const newNode = new Node();
     newNode.data = value;
 
     if (this.#root === null) {
@@ -53,6 +82,39 @@ export default class Tree {
         currNode = currNode.right;
       }
     }
+  }
+
+  deleteItem(value) {
+    this.#root = this.#deleteItemRecursion(value, this.#root);
+  }
+
+  #deleteItemRecursion(value, root) {
+    if (root === null) {
+      return null;
+    }
+
+    if (value < root.data) {
+      root.left = this.#deleteItemRecursion(value, root.left);
+    } else if (value > root.data) {
+      root.right = this.#deleteItemRecursion(value, root.right);
+    } else {
+      if (root.left === null) {
+        return root.right;
+      } else if (root.right === null) {
+        return root.left;
+      }
+
+      let currNode = root.right;
+
+      while (currNode.left !== null) {
+        currNode = currNode.left;
+      }
+
+      root.data = currNode.data;
+      root.right = this.#deleteItemRecursion(root.data, root.right);
+    }
+
+    return root;
   }
 
   find(value) {
@@ -100,61 +162,83 @@ export default class Tree {
     }
   }
 
-  inOrder(callback, root = this.#root) {
+  inOrder(callback) {
     if (typeof callback !== "function") {
       throw new Error("Argument must be a callback");
     }
 
-    if (root === null) {
-      return;
-    }
-
-    this.inOrder(callback, root.left);
-    callback(root);
-    this.inOrder(callback, root.right);
+    this.#inOrderRecursion(callback, this.#root);
   }
 
-  preOrder(callback, root = this.#root) {
-    if (typeof callback !== "function") {
-      throw new Error("Argument must be a callback");
-    }
-
-    if (root === null) {
+  #inOrderRecursion(callback, node) {
+    if (node === null) {
       return;
     }
 
-    callback(root);
-    this.preOrder(callback, root.left);
-    this.preOrder(callback, root.right);
+    this.#inOrderRecursion(callback, node.left);
+    callback(node);
+    this.#inOrderRecursion(callback, node.right);
   }
 
-  postOrder(callback, root = this.#root) {
+  preOrder(callback) {
     if (typeof callback !== "function") {
       throw new Error("Argument must be a callback");
     }
 
-    if (root === null) {
+    this.#preOrderRecursion(callback, this.#root);
+  }
+
+  #preOrderRecursion(callback, node) {
+    if (node === null) {
       return;
     }
 
-    this.postOrder(callback, root.left);
-    this.postOrder(callback, root.right);
-    callback(root);
+    callback(node);
+    this.#preOrderRecursion(callback, node.left);
+    this.#preOrderRecursion(callback, node.right);
+  }
+
+  postOrder(callback) {
+    if (typeof callback !== "function") {
+      throw new Error("Argument must be a callback");
+    }
+
+    this.#postOrderRecursion(callback, this.#root);
+  }
+
+  #postOrderRecursion(callback, node) {
+    if (node === null) {
+      return;
+    }
+
+    this.#postOrderRecursion(callback, node.left);
+    this.#postOrderRecursion(callback, node.right);
+    callback(node);
   }
 
   height(node) {
     if (node === null) {
-      return -1;
+      return null;
+    }
+    return this.#heightRecursion(node) - 1;
+  }
+
+  #heightRecursion(node) {
+    if (node === null) {
+      return 0;
     }
 
-    const leftHeight = 1 + height(node.left);
-    const rightHeight = 1 + height(node.right);
+    const leftHeight = 1 + this.#heightRecursion(node.left);
+    const rightHeight = 1 + this.#heightRecursion(node.right);
     return Math.max(leftHeight, rightHeight);
   }
 
   depth(node) {
-    const value = node.data;
+    if (node === null) {
+      return null;
+    }
 
+    const value = node.data;
     let currNode = this.#root;
 
     let depth = 0;
@@ -179,16 +263,18 @@ export default class Tree {
       return true;
     }
 
-    const leftHeight = height(this.#root.left);
-    const rightHeight = height(this.#root.right);
+    const leftHeight = this.height(this.#root.left);
+    const rightHeight = this.height(this.#root.right);
 
     return Math.abs(leftHeight - rightHeight) <= 1;
   }
 
   rebalance() {
-    const array = [];
+    const treeValues = [];
     this.inOrder((node) => {
-      array.push(node.data);
+      treeValues.push(node.data);
     });
+
+    this.buildTree(treeValues);
   }
 }
